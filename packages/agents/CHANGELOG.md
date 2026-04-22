@@ -1,5 +1,44 @@
 # @cloudflare/agents
 
+## 0.11.5
+
+### Patch Changes
+
+- [#1348](https://github.com/cloudflare/agents/pull/1348) [`0693a5f`](https://github.com/cloudflare/agents/commit/0693a5ff366f8108667b82f296bc3cfe32c06b74) Thanks [@threepointone](https://github.com/threepointone)! - Bump dependencies.
+
+- [#1355](https://github.com/cloudflare/agents/pull/1355) [`df2023f`](https://github.com/cloudflare/agents/commit/df2023fbd5ddf7d4acc90ba56d46b38867a57a3b) Thanks [@threepointone](https://github.com/threepointone)! - External addressability for sub-agents.
+
+  Clients can now reach a facet (a child DO created by `Agent#subAgent()`) directly via a nested URL:
+
+      /agents/{parent-class}/{parent-name}/sub/{child-class}/{child-name}[/...]
+
+  New public APIs (all `@experimental`):
+
+  - `routeSubAgentRequest(req, parent, options?)` — sub-agent analog of `routeAgentRequest`. For custom-routing setups where the outer URL doesn't match the default `/agents/...` shape.
+  - `getSubAgentByName(parent, Cls, name)` — sub-agent analog of `getAgentByName`. Returns a typed Proxy that round-trips typed RPC calls through the parent. RPC-only (no `.fetch()`); use `routeSubAgentRequest` for external HTTP/WS.
+  - `parseSubAgentPath(url, options?)` — public URL parser used internally by the routers.
+  - `SUB_PREFIX` — the `"sub"` separator constant (not configurable; exposed for symbolic URL building).
+
+  New public on `Agent`:
+
+  - `onBeforeSubAgent(req, { className, name })` — overridable middleware hook, mirrors `onBeforeConnect` / `onBeforeRequest`. Returns `Request | Response | void` for short-circuit responses, request mutation, or passthrough. Default: void.
+  - `parentPath` / `selfPath` — root-first `{ className, name }` ancestor chains, populated at facet init time. Inductive across recursive nesting.
+  - `hasSubAgent(ClsOrName, name)` / `listSubAgents(ClsOrName?)` — parent-side introspection backed by an auto-maintained SQLite registry written by `subAgent()` / `deleteSubAgent()`. Both accept either the class constructor or a CamelCase class name string.
+
+  New public on `useAgent` (React):
+
+  - `sub?: Array<{ agent, name }>` — flat root-first chain addressing a descendant facet. The hook's `.agent` / `.name` report the leaf identity; `.path` exposes the full chain.
+
+  Breaking changes: none. `routeAgentRequest` behavior is unchanged when URLs don't contain `/sub/`. `onBeforeSubAgent` defaults to permissive (forward unchanged). `useAgent` without `sub` is unchanged. `subAgent()` / `deleteSubAgent()` gain registry side effects but preserve return types and failure modes. The `_cf_initAsFacet` signature gained an optional `parentPath` parameter. `deleteSubAgent()` is now idempotent — calling it for a never-spawned or already-deleted child no longer throws. Sub-agent class names equal to `"Sub"` are rejected (the `/sub/` URL separator is reserved).
+
+  See `design/rfc-sub-agent-routing.md` for the full rationale, design decisions, and edge cases. The spike at `packages/agents/src/tests/spike-sub-agent-routing.test.ts` documents the three candidate approaches considered for cross-DO stub passthrough and why the per-call bridge won.
+
+- [#1346](https://github.com/cloudflare/agents/pull/1346) [`a78bb2a`](https://github.com/cloudflare/agents/commit/a78bb2a8903bce060b4a6c29796e5590315fe210) Thanks [@threepointone](https://github.com/threepointone)! - Remove unused `dependencies`, `devDependencies`, and `peerDependencies` from the `agents` package.
+
+  - `dependencies`: drop `json-schema`, `json-schema-to-typescript`, and `picomatch`. None are imported by the package; `picomatch` was already pulled in transitively via `@rolldown/plugin-babel`.
+  - `devDependencies`: drop `@ai-sdk/openai` (only referenced in a commented-out line) and `@cloudflare/workers-oauth-provider` (not referenced anywhere).
+  - `peerDependencies` / `peerDependenciesMeta`: drop `@ai-sdk/react` and `viem`. `@ai-sdk/react` is already a peer of `@cloudflare/ai-chat` (itself an optional peer here), and `viem` is a regular dependency of `@x402/evm`, so both are supplied transitively when the relevant optional features are used.
+
 ## 0.11.4
 
 ### Patch Changes
